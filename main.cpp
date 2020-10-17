@@ -83,21 +83,7 @@ bool line_line_intersection(pair<sf::Vertex, sf::Vertex> seg1, pair<sf::Vertex, 
     }
 
     if((r^s) == 0.f) {
-        if(((q-p) ^ r) != 0) {
-            return false;
-        }
-        else {
-            cout << "opa" << endl;
-            if(p.x > q.x) {
-                swap(p, q);
-                swap(r, s);
-            }
-            if(p.x+r.x >= q.x) {
-                inter = sf::Vector2f(q.x, q.y);
-                return true;
-            }
-            return false;
-        }
+        return false;
     }
 
     double u = ((q-p)^r);
@@ -294,6 +280,7 @@ int main() {
 
         // add points to visibility area
         for(sf::Vertex point : intersection_points) {
+            // uncomment to see lines
             // sf::Vertex vertices[] =
             // {
             //     mouse_vertex,
