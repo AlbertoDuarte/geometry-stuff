@@ -35,6 +35,9 @@ struct Vector {
     double module() const {
         return sqrt(x*x + y*y);
     }
+    double module_squared() const {
+        return x*x + y*y;
+    }
     int quarter() const {
         if(x > 0 and y >= 0) return 0;
         if(x <= 0 and y > 0) return 1;
@@ -45,7 +48,7 @@ struct Vector {
         // rotates vector counter clockwise
         double xant = x;
         x = x*cos(angle) - y*sin(angle);
-        y = y*cos(angle) - xant*sin(angle);
+        y = y*cos(angle) + xant*sin(angle);
     }
     void force_module(double new_module) {
         // assign new module maintaing same direction
@@ -56,6 +59,13 @@ struct Vector {
         }
     }
 };
+
+int distance(sf::Vertex point1, sf::Vertex point2) {
+    Vector vec1 = Vector(point1);
+    Vector vec2 = Vector(point2);
+
+    return (vec2-vec1).module_squared();
+}
 
 bool line_line_intersection(pair<sf::Vertex, sf::Vertex> seg1, pair<sf::Vertex, sf::Vertex> seg2, sf::Vertex& inter) {
     // line1 is segment from p to p+r, line2 is segment from q to q+s
@@ -114,7 +124,7 @@ bool convex_line_intersection(sf::ConvexShape convex, pair<sf::Vertex, sf::Verte
         sf::Vertex inter_aux;
         if(line_line_intersection(convex_line, segment, inter_aux)) {
             if(intersection) {
-                if(abs(segment.first.position.x - inter_aux.position.x) < abs(segment.first.position.x - inter.position.x) ) {
+                if(distance(segment.first, inter_aux) < distance(segment.first, inter) ) {
                     swap(inter, inter_aux);
                 }
             }
@@ -178,11 +188,14 @@ vector<pair<sf::Vertex, sf::Vertex>> get_all_segments(sf::Vertex reference, vect
         point_vector.force_module(10000);
 
         // jittered segments
-        point_vector.rotate_ccw(0.0001);
-        Vector plus_vector = point_vector + ref_vector;
+        Vector plus_vector = point_vector;
+        plus_vector.rotate_ccw(0.001);
+        plus_vector = plus_vector + ref_vector;
 
-        point_vector.rotate_ccw(-0.0002);
-        Vector minus_vector = point_vector + ref_vector;
+        Vector minus_vector = point_vector;
+        minus_vector.rotate_ccw(-0.001);
+        minus_vector = minus_vector + ref_vector;
+
 
         pair<sf::Vertex, sf::Vertex> plus_segment = make_pair(reference, sf::Vertex(sf::Vector2f(plus_vector.x, plus_vector.y)));
         segments.push_back(plus_segment);
@@ -222,15 +235,11 @@ int main() {
     convex3.setFillColor(sf::Color::Blue);
 
     // window
-    window_convex.setPointCount(8);
+    window_convex.setPointCount(4);
     window_convex.setPoint(0, sf::Vector2f(0.f, 0.f));
-    window_convex.setPoint(1, sf::Vector2f(0.f, 1.f));
-    window_convex.setPoint(2, sf::Vector2f(0.f, 600.f));
-    window_convex.setPoint(3, sf::Vector2f(1.f, 600.f));
-    window_convex.setPoint(4, sf::Vector2f(800.f, 600.f));
-    window_convex.setPoint(5, sf::Vector2f(800.f, 599.f));
-    window_convex.setPoint(6, sf::Vector2f(800.f, 0.f));
-    window_convex.setPoint(7, sf::Vector2f(799.f, 0.f));
+    window_convex.setPoint(1, sf::Vector2f(0.f, 600.f));
+    window_convex.setPoint(2, sf::Vector2f(800.f, 600.f));
+    window_convex.setPoint(3, sf::Vector2f(800.f, 0.f));
 
     vector<sf::ConvexShape> convexes;
     convexes.push_back(convex);
@@ -254,6 +263,7 @@ int main() {
         sf::Vector2i mouse_position = sf::Mouse::getPosition(window);
         sf::Vertex mouse_vertex = sf::Vertex(sf::Vector2f(mouse_position.x, mouse_position.y));
         sf::VertexArray area(sf::TrianglesFan); // visibility area
+        area.append(mouse_vertex); // shape center
 
         // get points from convex shapes
         vector<sf::Vertex> points = get_points(convexes);
@@ -269,7 +279,7 @@ int main() {
 
             for(sf::ConvexShape convex : convexes) {
                 if(convex_line_intersection(convex, ray, inter_aux)) {
-                    if(!has_intersection or abs(ray.first.position.x - inter_aux.position.x) < abs(ray.first.position.x - inter.position.x) ) {
+                    if(!has_intersection or (distance(ray.first, inter_aux) < distance(ray.first, inter)) ) {
                         swap(inter_aux, inter);
                     }
                     has_intersection = true;
@@ -280,17 +290,19 @@ int main() {
                 intersection_points.push_back(inter);
             }
         }
-
         sort_points(mouse_vertex, intersection_points);
-        cout << intersection_points.size() << endl;
 
         // add points to visibility area
         for(sf::Vertex point : intersection_points) {
+            // sf::Vertex vertices[] =
+            // {
+            //     mouse_vertex,
+            //     point
+            // };
             // window.draw(vertices, 2, sf::Lines);
             // cout << "point = " << point.position.x << " " << point.position.y << endl;
             area.append(point);
         }
-        area.append(mouse_vertex);
         area.append(intersection_points[0]);
 
         // print stuff
